@@ -83,7 +83,8 @@ The store API cannot create an item, so the first version is uploaded in the das
 1. Sign in at the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) and pay
    the one-time registration fee. Turn on 2-step verification for that Google account: the
    store requires it for publishing.
-2. Run `npm run build`, choose "New item" in the dashboard and upload the zip from `dist/`.
+2. Run `npm run build`, click "Add new item" in the dashboard, choose the zip from `dist/` and
+   click "Upload".
 3. **Store listing** tab: copy the texts from [`store/listing/en.md`](../store/listing/en.md)
    and [`store/listing/pl.md`](../store/listing/pl.md). Upload the graphics from
    `store/assets/`: the screenshots (1280x800) and the small promo tile (440x280). The marquee
