@@ -38,25 +38,28 @@ Everything runs on plain Node.js 20 or newer. There are no dependencies to insta
 | Command | What it does |
 | --- | --- |
 | `npm run check` | Validates the manifest, locales, icons and scripts. |
-| `npm run build` | Runs the check and writes `dist/mysttic-adblock-enjoyer-<version>.zip`. |
+| `npm run build` | Checks everything and writes `dist/mysttic-adblock-enjoyer-<version>.zip`. |
 | `npm run e2e` | Release gate in a real browser, see [docs/RELEASING.md](docs/RELEASING.md). |
-| `npm run bump -- patch` | Bumps the version (`patch`, `minor`, `major` or `X.Y.Z`). |
 | `npm run assets` | Renders the icons and store graphics from `store/src`. |
-| `npm run publish:cws -- <zip>` | Uploads a build to the Chrome Web Store. |
+| `npm run release:check` | Checks that `VERSION.md`, its copies and `CHANGELOG.md` agree. |
+| `node scripts/version.mjs bump patch` | Raises the version (`patch`, `minor` or `major`). |
+| `node scripts/chrome-web-store.mjs status` | Shows what the Chrome Web Store holds. |
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
 | `extension/` | The extension. This folder is what ships. |
-| `scripts/` | Check, build, version bump and store upload. |
+| `scripts/` | Check, build, version and store upload. |
 | `tools/` | Browser test harness, asset renderer and Ad-Shield research helpers. |
 | `store/` | Store listing texts, privacy answers and graphics. |
 | `docs/` | The release process. |
 
 ## Releasing
 
-See [docs/RELEASING.md](docs/RELEASING.md).
+The release number lives in [VERSION.md](VERSION.md) and the notes in
+[CHANGELOG.md](CHANGELOG.md). A release starts when `VERSION.md` changes on `main`. See
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Privacy
 

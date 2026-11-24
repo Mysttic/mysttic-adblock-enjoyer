@@ -1,117 +1,63 @@
 # Releasing
 
-How a version gets from this repository into the Chrome Web Store.
+How a version gets from this repository into the Chrome Web Store. The process is the same as
+in the other Mysttic projects: the release number lives in [`VERSION.md`](../VERSION.md), the
+notes live in [`CHANGELOG.md`](../CHANGELOG.md), and a release starts when `VERSION.md`
+changes on `main`.
 
-## Overview
+## Pull requests and releases
 
-1. `npm run bump` raises the version in `extension/manifest.json` and `package.json`.
-2. `npm run build` checks the extension and writes `dist/mysttic-adblock-enjoyer-<version>.zip`.
-3. `npm run e2e` proves in a real browser that the wall is gone.
-4. Pushing a `v<version>` tag starts the `Release` workflow. It rebuilds the zip, attaches it
-   to a GitHub release and, when the store credentials are configured, uploads it to the
-   Chrome Web Store and submits it for review.
+Work happens on a branch from `develop`, and the pull request goes back into `develop`. Each
+one adds a line to `CHANGELOG.md` under `Unreleased` and leaves `VERSION.md` alone.
 
-The build is deterministic: the same sources and the same Node.js version always give the same
-zip. Every build prints its SHA-256 checksum.
+A release is a pull request from `develop` into `main` that raises the version:
 
-## One-time setup
+1. `node scripts/version.mjs bump patch` (or `minor`, `major`). It writes the new number to
+   `VERSION.md`, `package.json` and `extension/manifest.json`, turns `Unreleased` into a dated
+   section and moves the compare links at the bottom of the changelog. It refuses when
+   `Unreleased` is empty.
+2. Add a sentence or two under the new heading on what the release is about.
+3. Run the [release gate](#the-release-gate) on the built package.
+4. Open the pull request. CI checks that every copy of the version agrees and that the number
+   is higher than the one on `main`, then checks and packs the extension.
+5. Merge. The **Release** workflow starts only because `VERSION.md` changed. It verifies and
+   packs the extension, uploads the package to the Chrome Web Store and submits it for review,
+   then tags the GitHub release `v<version>` with the changelog section as its notes. The
+   store publishes the version on its own once the review passes.
 
-### 1. Developer account
+While [the store access](#chrome-web-store-access) is not configured, the workflow skips the
+store and attaches the package to the GitHub release instead, to be uploaded by hand in the
+Developer Dashboard. Once it is configured the release carries notes only: the extension is
+then installed from the store.
 
-1. Sign in at the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) and pay
-   the one-time registration fee.
-2. Turn on 2-step verification for that Google account. The store requires it for publishing.
+`node scripts/version.mjs` has the same four commands as in the other Mysttic projects:
+`current` prints the version, `notes` prints its changelog section, `check` validates every
+copy (`--against X.Y.Z` also requires a higher number) and `bump` raises it.
 
-### 2. First version, by hand
+`node scripts/chrome-web-store.mjs status` shows what the store holds: the published version,
+the one in review and the last upload. `publish <zip>` is what the workflow runs. It skips a
+version the store already has, so a release that failed after the upload can be re-run from
+the Actions tab without a second upload, and it stops with a message while another version is
+still in review. To tag an existing version again, start **Release** by hand with **force**.
 
-The store API cannot create an item, so the first version is uploaded in the dashboard.
-
-1. Run `npm run build`.
-2. In the dashboard choose "New item" and upload the zip from `dist/`.
-3. **Store listing** tab: copy the texts from [`store/listing/en.md`](../store/listing/en.md)
-   and [`store/listing/pl.md`](../store/listing/pl.md). Upload the graphics from
-   `store/assets/`: the screenshots (1280x800) and the small promo tile (440x280). The marquee
-   (1400x560) is optional. The store icon is taken from the package.
-4. **Privacy** tab: copy the answers from
-   [`store/privacy-practices.md`](../store/privacy-practices.md).
-5. Paste [`store/reviewer-notes.md`](../store/reviewer-notes.md) into the notes for reviewers
-   on the test instructions tab.
-6. Submit for review.
-
-Note the two identifiers you need later:
-
-- **Extension ID**: 32 characters, shown on the item's Package tab.
-- **Publisher ID**: shown under Publisher, Settings.
-
-### 3. Automatic uploads (optional)
-
-Without this step the workflow still builds the zip and creates the GitHub release. You then
-upload that zip in the dashboard yourself.
-
-To let the workflow upload and submit:
-
-1. In the Google Cloud Console create a project and enable the Chrome Web Store API.
-2. Configure the OAuth consent screen as External and add your own address as a test user.
-3. Create an OAuth client ID of type "Web application" with
-   `https://developers.google.com/oauthplayground` as an authorised redirect URI.
-4. In the [OAuth Playground](https://developers.google.com/oauthplayground) choose "Use your
-   own OAuth credentials", enter the scope `https://www.googleapis.com/auth/chromewebstore`,
-   authorise with the Google account that owns the item, and exchange the code for a refresh
-   token.
-5. Add these repository secrets on GitHub (Settings, Secrets and variables, Actions):
-
-   | Secret | Value |
-   | --- | --- |
-   | `CWS_PUBLISHER_ID` | Publisher ID from the dashboard |
-   | `CWS_EXTENSION_ID` | Extension ID from the dashboard |
-   | `CWS_CLIENT_ID` | OAuth client ID |
-   | `CWS_CLIENT_SECRET` | OAuth client secret |
-   | `CWS_REFRESH_TOKEN` | Refresh token from the playground |
-
-The official guide for these steps is
-[Use the Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api).
-
-## Every release
-
-1. **Bump the version.** The store rejects a version that is not higher than the last one.
-
-   ```sh
-   npm run bump -- patch
-   ```
-
-2. **Describe the change** in the new section of `CHANGELOG.md`. That section becomes the text
-   of the GitHub release.
-
-3. **Build and test what ships.** Unpack the zip and point the test at it:
-
-   ```sh
-   npm run build
-   mkdir -p dist/unpacked && unzip -o -q dist/mysttic-adblock-enjoyer-*.zip -d dist/unpacked
-   npm run e2e -- --ext dist/unpacked
-   ```
-
-   The test needs Chrome and a file `e2e.local.txt` in the repository root with one page URL
-   per line. That file is not committed. Use pages that run the Ad-Shield loader.
-
-4. **Commit, tag and push.**
-
-   ```sh
-   git commit -am "Release 1.2.3"
-   git tag v1.2.3
-   git push
-   git push origin v1.2.3
-   ```
-
-5. **Watch the `Release` workflow.** It fails when the tag does not match the manifest
-   version. When the store secrets are missing it skips the upload: download the zip from the
-   GitHub release and upload it in the dashboard.
-
-6. **Wait for the review.** The dashboard shows the state. An update keeps the listing texts
-   and graphics of the previous version.
+The store listing itself (descriptions, screenshots, the privacy answers) is edited in the
+[Developer Dashboard](https://chrome.google.com/webstore/devconsole). The texts and graphics
+to paste there are in [`store/`](../store).
 
 ## The release gate
 
-`npm run e2e` opens every page from `e2e.local.txt` in a throwaway browser profile, five times:
+Before a release pull request, build the package and test exactly what ships:
+
+```sh
+npm run build
+mkdir -p dist/unpacked && unzip -o -q dist/mysttic-adblock-enjoyer-*.zip -d dist/unpacked
+npm run e2e -- --ext dist/unpacked
+```
+
+The test needs Chrome and a file `e2e.local.txt` in the repository root with one page URL per
+line. That file is not committed. Use pages that run the Ad-Shield loader.
+
+`npm run e2e` opens every page in a throwaway browser profile, five times:
 
 | Run | Expectation |
 | --- | --- |
@@ -128,6 +74,51 @@ Ad-Shield, and the list needs other pages.
 Browser profiles are kept in the system temp folder under `mae-browser-profiles` and can be
 deleted at any time.
 
+## One-time setup
+
+### Developer account and the first version
+
+The store API cannot create an item, so the first version is uploaded in the dashboard.
+
+1. Sign in at the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) and pay
+   the one-time registration fee. Turn on 2-step verification for that Google account: the
+   store requires it for publishing.
+2. Run `npm run build`, choose "New item" in the dashboard and upload the zip from `dist/`.
+3. **Store listing** tab: copy the texts from [`store/listing/en.md`](../store/listing/en.md)
+   and [`store/listing/pl.md`](../store/listing/pl.md). Upload the graphics from
+   `store/assets/`: the screenshots (1280x800) and the small promo tile (440x280). The marquee
+   (1400x560) is optional. The store icon is taken from the package.
+4. **Privacy** tab: copy the answers from
+   [`store/privacy-practices.md`](../store/privacy-practices.md).
+5. Paste [`store/reviewer-notes.md`](../store/reviewer-notes.md) into the test instructions
+   for reviewers.
+6. Submit for review.
+
+### Chrome Web Store access
+
+The workflow signs in to the Chrome Web Store API as a Google Cloud service account.
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project (or pick
+   one) and enable the **Chrome Web Store API**.
+2. Create a service account in that project, then a JSON key for it.
+3. In the Developer Dashboard, **Account**: add the service account's e-mail address. A
+   publisher can have one service account, so a publisher that already releases another
+   extension this way reuses the same key.
+4. In this repository, *Settings, Secrets and variables, Actions*:
+   - the secret `CWS_SERVICE_ACCOUNT_KEY` holding the whole JSON key,
+   - `CWS_PUBLISHER_ID`, the publisher ID from the Developer Dashboard (**Publisher**,
+     **Settings**),
+   - `CWS_ITEM_ID`, the 32-character ID from the item's **Package** tab.
+
+   The two IDs are not confidential and can be repository variables instead of secrets.
+
+Releases go out from `main` only: a manual run of **Release** on another branch stops at once.
+
+With none of the three set, the release skips the store and attaches the package to the GitHub
+release. With only some of them set it stops in its first job, before anything is built. The
+API publishes with the visibility saved in the dashboard: after changing it there, publish
+once by hand before the next release.
+
 ## When Ad-Shield changes
 
 Ad-Shield updates its loader from time to time. If the wall comes back:
@@ -142,7 +133,7 @@ Ad-Shield updates its loader from time to time. If the wall comes back:
    `survey.js` lists the script tags that look like Ad-Shield. `decode-snippets.js` unpacks
    the loader attributes and the watchdog into readable code without running them.
 2. Adjust the signature in `extension/content.js` (`DECODER`, `isLoader`, `isWatchdog`).
-3. Run the release gate, then release.
+3. Add a line under `Unreleased` in `CHANGELOG.md`, run the release gate, then release.
 
 ## Optional word check
 

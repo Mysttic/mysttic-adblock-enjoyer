@@ -1,15 +1,13 @@
-// Validates the extension before it is packaged. Exits with code 1 and a list of problems.
+// Validates what ships in the package: manifest, locales, icons and scripts. Exits with
+// code 1 and a list of problems. The version itself is checked by scripts/version.mjs.
 //
-// usage: node scripts/check.js [--tag vX.Y.Z]
-//   --tag   also require the given git tag to match the manifest version (used by CI)
+// usage: node scripts/check.js
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { execFileSync } = require('child_process');
-const {
-  ROOT, EXTENSION_DIR, MANIFEST_PATH, PACKAGE_PATH, readJson, listPackageFiles, changelogSection,
-} = require('./lib/project');
+const { ROOT, EXTENSION_DIR, MANIFEST_PATH, readJson, listPackageFiles } = require('./lib/project');
 
 // Chrome Web Store limits.
 const MAX_NAME = 75;
@@ -40,18 +38,13 @@ function repositoryFiles() {
   }
 }
 
-function check({ tag } = {}) {
+function check() {
   const problems = [];
   const manifest = readJson(MANIFEST_PATH);
-  const pkg = readJson(PACKAGE_PATH);
   const files = listPackageFiles();
   const exists = (relative) => files.includes(relative);
 
   if (manifest.manifest_version !== 3) problems.push('manifest_version must be 3');
-  if (!/^\d+(\.\d+){0,3}$/.test(manifest.version || '')) problems.push(`invalid manifest version: ${manifest.version}`);
-  if (manifest.version !== pkg.version) problems.push(`manifest version ${manifest.version} differs from package.json ${pkg.version}`);
-  if (tag && tag !== `v${manifest.version}`) problems.push(`tag ${tag} does not match manifest version ${manifest.version}`);
-  if (!changelogSection(manifest.version)) problems.push(`CHANGELOG.md has no "## ${manifest.version}" section`);
 
   for (const script of (manifest.content_scripts || []).flatMap((entry) => entry.js || [])) {
     if (!exists(script)) problems.push(`content script missing: ${script}`);
@@ -112,8 +105,7 @@ function check({ tag } = {}) {
 }
 
 if (require.main === module) {
-  const tagIndex = process.argv.indexOf('--tag');
-  const { problems, manifest, files } = check({ tag: tagIndex >= 0 ? process.argv[tagIndex + 1] : undefined });
+  const { problems, manifest, files } = check();
   if (problems.length) {
     console.error(`Check failed (${problems.length}):`);
     for (const problem of problems) console.error('  - ' + problem);

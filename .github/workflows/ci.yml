@@ -1,17 +1,71 @@
 name: CI
 
+# Verification runs for one case only: a pull request from `develop` into
+# `main`. Feature branches and pushes start nothing, because `release.yml`
+# re-runs the very same steps after the merge and there are no Actions minutes
+# to spend checking the same tree twice.
+#
+# Accepted consequence: a pull request into `main` from any branch other than
+# `develop` starts no job at all, and GitHub reports that run as green, because
+# a skipped job counts as a success.
+
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+    # A documentation-only change needs no check and no build.
+    #
+    # `**.md` and not `**/*.md`: in GitHub's filter patterns `**` matches zero or
+    # more of ANY character, so `**/*.md` still demands a literal `/` and would
+    # miss README.md, CHANGELOG.md, VERSION.md and PRIVACY.md in the repository
+    # root.
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A newer push to the same pull request makes the running check obsolete.
+  cancel-in-progress: true
+
 jobs:
-  build:
+  verify:
+    # GitHub cannot filter on the SOURCE branch inside `on:`, where `branches:`
+    # matches the base branch only. Limiting this to pull requests that come
+    # from `develop` therefore has to happen at job level. The
+    # `workflow_dispatch` arm is required: `github.head_ref` is empty for a
+    # manual run, so without it a manual run would do nothing.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'develop'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - name: Check and build the package
-        run: node scripts/build.js
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The release gate belongs on the pull request, where a forgotten version
+      # bump costs one commit to fix. After the merge `release.yml` starts only
+      # when VERSION.md changed, so a forgotten bump would surface nowhere.
+      - name: Check release metadata
+        run: npm run release:check
+
+      # A pull request into main is a release, so it has to raise the number,
+      # the same guard as in the other Mysttic projects. Compared with
+      # VERSION.md on main, so the single-commit checkout needs no history.
+      - name: Is the version higher than on main?
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin main
+          if ! git show FETCH_HEAD:VERSION.md > "$RUNNER_TEMP/main-VERSION.md" 2>/dev/null; then
+            echo "::notice::main has no VERSION.md yet, so there is nothing to compare with."
+            exit 0
+          fi
+          released="$(node scripts/version.mjs current --file "$RUNNER_TEMP/main-VERSION.md")"
+          echo "main is at $released"
+          node scripts/version.mjs check --against "$released"
+
+      # No dependencies to install: the scripts use Node.js alone.
+      - name: Verify and pack
+        run: npm run build
