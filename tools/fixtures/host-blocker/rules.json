@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "requestDomains": [
+        "html-load.com",
+        "html-load.cc",
+        "content-loader.com",
+        "css-load.com",
+        "img-load.com",
+        "07c225f3.online",
+        "error-report.com",
+        "ad-shield.io",
+        "d2w3kkzkbwx7b4.cloudfront.net"
+      ]
+    }
+  }
+]

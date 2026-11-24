@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Icon</title>
+<style>
+  html, body { margin: 0; background: transparent; }
+  img { display: block; }
+</style>
+<body>
+<script>
+  // ?size=N renders an N x N icon. The 128 px store icon is 96 px of artwork with 16 px of
+  // transparent padding, as the Chrome Web Store asks. Smaller sizes are full bleed.
+  const size = Number(new URLSearchParams(location.search).get('size')) || 128;
+  const art = size === 128 ? 96 : size;
+  const image = document.createElement('img');
+  image.src = 'icon.svg';
+  image.width = art;
+  image.height = art;
+  image.style.margin = (size - art) / 2 + 'px';
+  document.body.append(image);
+</script>
+</body>

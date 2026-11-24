@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Screenshot 2: how it works</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { width: 1280px; height: 800px; padding: 0 64px 12px; display: flex; flex-direction: column; justify-content: center; }
+  h1 { font-size: 46px; line-height: 1.15; font-weight: 700; }
+  .lead { margin-top: 12px; font-size: 22px; color: var(--muted); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 44px; }
+  .step { height: 330px; padding: 34px 30px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+  .step__number { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 24px; font-weight: 700; }
+  .step h2 { margin-top: 26px; font-size: 26px; line-height: 1.25; font-weight: 700; }
+  .step p { margin-top: 14px; font-size: 18px; line-height: 1.55; color: var(--muted); }
+  .facts { display: flex; justify-content: center; gap: 18px; margin-top: 52px; }
+  .fact { padding: 12px 26px; border-radius: 999px; background: #e7e0ff; color: #3d2aa8; font-size: 19px; font-weight: 600; }
+</style>
+<body>
+  <h1 data-t="title"></h1>
+  <p class="lead" data-t="lead"></p>
+
+  <div class="steps">
+    <div class="step">
+      <span class="step__number">1</span>
+      <h2 data-t="step1Title"></h2>
+      <p data-t="step1Text"></p>
+    </div>
+    <div class="step">
+      <span class="step__number">2</span>
+      <h2 data-t="step2Title"></h2>
+      <p data-t="step2Text"></p>
+    </div>
+    <div class="step">
+      <span class="step__number">3</span>
+      <h2 data-t="step3Title"></h2>
+      <p data-t="step3Text"></p>
+    </div>
+  </div>
+
+  <div class="facts">
+    <span class="fact" data-t="fact1"></span>
+    <span class="fact" data-t="fact2"></span>
+    <span class="fact" data-t="fact3"></span>
+  </div>
+
+<script>
+  const TEXT = {
+    en: {
+      title: 'How it works',
+      lead: 'One small script that runs before the page does.',
+      step1Title: 'Spots the Ad‑Shield tags',
+      step1Text: 'It recognises the loader and its watchdog by their code signature while the page is still loading.',
+      step2Title: 'Defuses them before they run',
+      step2Text: 'Both tags are switched off before the browser executes them. No wall, no reload, no redirect.',
+      step3Title: 'Leaves everything else alone',
+      step3Text: 'No network rules and no background page. Pages without Ad-Shield are not touched.',
+      fact1: 'No data collected',
+      fact2: 'No ads',
+      fact3: 'No account',
+    },
+    pl: {
+      title: 'Jak to działa',
+      lead: 'Jeden mały skrypt, który uruchamia się przed stroną.',
+      step1Title: 'Rozpoznaje tagi Ad‑Shield',
+      step1Text: 'Wykrywa loader i jego watchdoga po sygnaturze kodu, jeszcze w trakcie ładowania strony.',
+      step2Title: 'Rozbraja je przed uruchomieniem',
+      step2Text: 'Oba tagi są wyłączane, zanim przeglądarka je wykona. Bez ściany, przeładowania i przekierowania.',
+      step3Title: 'Resztę zostawia w spokoju',
+      step3Text: 'Bez reguł sieciowych i procesu w tle. Stron bez Ad-Shield nie dotyka.',
+      fact1: 'Nie zbiera danych',
+      fact2: 'Bez reklam',
+      fact3: 'Bez konta',
+    },
+  };
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  document.documentElement.lang = lang;
+  for (const node of document.querySelectorAll('[data-t]')) node.textContent = TEXT[lang][node.dataset.t];
+</script>
+</body>

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# Written by the browser into unpacked extension folders.
+_metadata/
+
+# Local research material and captures of third-party pages. Never committed.
+analysis/
+dl/
+
+# Local-only configuration (test URLs, word lists, credentials).
+*.local.txt
+*.local.json
+.env

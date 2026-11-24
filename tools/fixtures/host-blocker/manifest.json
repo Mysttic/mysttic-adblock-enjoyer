@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Test fixture: Ad-Shield host blocker",
+  "version": "1.0.0",
+  "description": "Test only. Blocks the Ad-Shield hosts everywhere, like a DNS or list based blocker would.",
+  "permissions": ["declarativeNetRequest"],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "hosts", "enabled": true, "path": "rules.json" }
+    ]
+  }
+}

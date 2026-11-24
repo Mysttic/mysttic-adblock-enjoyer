@@ -1,0 +1,103 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Screenshot 1: before and after</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { width: 1280px; height: 800px; padding: 52px 64px 0; }
+  h1 { font-size: 46px; line-height: 1.15; font-weight: 700; }
+  .lead { margin-top: 12px; font-size: 22px; color: var(--muted); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
+  .label { display: inline-block; margin-bottom: 14px; padding: 6px 14px; border-radius: 999px; font-size: 16px; font-weight: 600; }
+  .label--off { background: #ece9f5; color: var(--muted); }
+  .label--on { background: #e2f5ec; color: var(--ok); }
+  .window__body { position: relative; height: 396px; }
+  .wiped { background: #e7e5ee; }
+  .dialog { position: absolute; left: 50%; top: 44px; width: 400px; margin-left: -200px; padding: 22px 24px 20px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+  .dialog__title { font-size: 16px; font-weight: 600; }
+  .dialog__text { margin-top: 10px; font-size: 14px; line-height: 1.5; }
+  .dialog__buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .button { padding: 8px 22px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1px solid var(--brand); color: var(--brand); }
+  .button--primary { background: var(--brand); color: #fff; }
+  .article { padding: 30px 34px; }
+  .bar { height: 12px; margin-top: 14px; border-radius: 6px; background: #e4e1ef; }
+  .bar--title { height: 24px; width: 72%; margin-top: 0; background: #2b2444; }
+  .bar--meta { width: 34%; background: #cfc9e6; }
+  .picture { height: 130px; margin-top: 22px; border-radius: 10px; background: #d9d0ff; }
+  .note { position: absolute; left: 0; right: 0; bottom: 34px; text-align: center; font-size: 17px; color: var(--muted); }
+</style>
+<body>
+  <h1 data-t="title"></h1>
+  <p class="lead" data-t="lead"></p>
+
+  <div class="panels">
+    <div>
+      <span class="label label--off" data-t="without"></span>
+      <div class="window">
+        <div class="window__bar">
+          <span class="window__dot"></span><span class="window__dot"></span><span class="window__dot"></span>
+          <span class="window__address">example.com/article</span>
+        </div>
+        <div class="window__body wiped">
+          <div class="dialog">
+            <p class="dialog__title" data-t="dialogTitle"></p>
+            <p class="dialog__text">Please allow ads on this site. Click OK to learn more.</p>
+            <div class="dialog__buttons">
+              <span class="button button--primary">OK</span>
+              <span class="button" data-t="cancel"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <span class="label label--on" data-t="with"></span>
+      <div class="window">
+        <div class="window__bar">
+          <span class="window__dot"></span><span class="window__dot"></span><span class="window__dot"></span>
+          <span class="window__address">example.com/article</span>
+          <img class="window__icon" src="icon.svg" alt="">
+        </div>
+        <div class="window__body">
+          <div class="article">
+            <div class="bar bar--title"></div>
+            <div class="bar bar--meta"></div>
+            <div class="picture"></div>
+            <div class="bar" style="width: 100%"></div>
+            <div class="bar" style="width: 94%"></div>
+            <div class="bar" style="width: 97%"></div>
+            <div class="bar" style="width: 61%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" data-t="note"></p>
+
+<script>
+  const TEXT = {
+    en: {
+      title: 'No more “allow ads” wall',
+      lead: 'The page loads as usual and your ad blocker keeps working.',
+      without: 'Without the extension',
+      with: 'With the extension',
+      dialogTitle: 'example.com says',
+      cancel: 'Cancel',
+      note: 'Works on sites that use the Ad-Shield loader, SDK 1.2.x.',
+    },
+    pl: {
+      title: 'Koniec ze ścianą „allow ads”',
+      lead: 'Strona ładuje się normalnie, a Twój adblock działa dalej.',
+      without: 'Bez wtyczki',
+      with: 'Z wtyczką',
+      dialogTitle: 'Komunikat ze strony example.com',
+      cancel: 'Anuluj',
+      note: 'Działa na stronach z loaderem Ad-Shield, SDK 1.2.x.',
+    },
+  };
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  document.documentElement.lang = lang;
+  for (const node of document.querySelectorAll('[data-t]')) node.textContent = TEXT[lang][node.dataset.t];
+</script>
+</body>

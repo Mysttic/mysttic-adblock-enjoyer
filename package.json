@@ -1,0 +1,17 @@
+{
+  "name": "mysttic-adblock-enjoyer",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Browser extension that defuses the Ad-Shield anti-adblock wall.",
+  "scripts": {
+    "check": "node scripts/check.js",
+    "build": "node scripts/build.js",
+    "bump": "node scripts/bump.js",
+    "e2e": "node tools/e2e.js",
+    "assets": "node tools/render-assets.js",
+    "publish:cws": "node scripts/publish-cws.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

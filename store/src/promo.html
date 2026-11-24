@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Promotional tile</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* ?size=small renders 440 x 280, ?size=marquee renders 1400 x 560. */
+  body { display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; }
+  body.small { width: 440px; height: 280px; }
+  body.marquee { width: 1400px; height: 560px; }
+  .tile { display: flex; align-items: center; }
+  .mark { background: #fff; display: flex; align-items: center; justify-content: center; }
+  .mark svg { display: block; }
+  .small .tile { flex-direction: column; text-align: center; }
+  .small .mark { width: 84px; height: 84px; border-radius: 22px; }
+  .small .mark svg { width: 56px; height: 56px; }
+  .small h1 { margin-top: 20px; font-size: 27px; font-weight: 700; }
+  .small p { margin-top: 8px; font-size: 16px; opacity: 0.9; }
+  .marquee .tile { gap: 56px; }
+  .marquee .mark { width: 220px; height: 220px; border-radius: 56px; }
+  .marquee .mark svg { width: 150px; height: 150px; }
+  .marquee h1 { font-size: 68px; font-weight: 700; line-height: 1.1; }
+  .marquee p { margin-top: 18px; font-size: 32px; opacity: 0.9; }
+</style>
+<body>
+  <div class="tile">
+    <div class="mark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="12 8 72 80">
+        <path d="M48 15 L76 25 V46 C76 63 64.5 76 48 82 C31.5 76 20 63 20 46 V25 Z" fill="#6C47FF"/>
+        <path d="M35.5 47.5 L44.5 56.5 L61.5 38.5" fill="none" stroke="#FFFFFF" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Mysttic Adblock Enjoyer</h1>
+      <p>Defuses the Ad-Shield wall</p>
+    </div>
+  </div>
+<script>
+  document.body.className = new URLSearchParams(location.search).get('size') === 'marquee' ? 'marquee' : 'small';
+</script>
+</body>
