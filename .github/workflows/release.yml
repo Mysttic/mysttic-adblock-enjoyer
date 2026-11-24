@@ -1,39 +1,186 @@
 name: Release
 
-# Runs when a version tag is pushed: git tag v1.2.3 && git push origin v1.2.3
+# Releases come from VERSION.md, as in the other Mysttic projects. The workflow
+# starts only when a push to main changes that file, in practice a merged
+# develop -> main pull request that raised the number, so a merge without a
+# bump starts no runner at all. It checks that every copy of the version and the
+# CHANGELOG.md section agree, verifies and packs the extension, uploads it to
+# the Chrome Web Store and submits it for review, then tags the GitHub release
+# `v<version>` with the changelog section as its notes.
+#
+# While the store access is not configured, the store step is skipped and the
+# package is attached to the GitHub release, to be uploaded by hand in the
+# Developer Dashboard. Once the store is configured the package is no longer
+# attached: the extension is then installed from the store only.
+#
+# The same thing can be started by hand from the Actions tab, with `force` to
+# tag a version again; the store step skips a version the store already holds.
+
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [VERSION.md]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Tag and release even though this version is already tagged"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Deliberately false: a publication in flight is never cut short.
+  cancel-in-progress: false
+
 jobs:
-  release:
+  version:
+    name: Version
     runs-on: ubuntu-latest
-    env:
-      CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
-      CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.decide.outputs.version }}
+      tag: ${{ steps.decide.outputs.tag }}
+      publishing: ${{ steps.decide.outputs.publishing }}
+      store: ${{ steps.store.outputs.configured }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Check that the tag matches the manifest version
-        run: node scripts/check.js --tag "$GITHUB_REF_NAME"
+      # scripts/version.mjs reads VERSION.md, package.json,
+      # extension/manifest.json and CHANGELOG.md through node:fs alone, so it
+      # answers in about a second on a bare checkout.
+      - name: Check release metadata
+        run: npm run release:check
 
-      - name: Build the package
-        run: node scripts/build.js
+      - name: Is this version still unreleased?
+        id: decide
+        env:
+          # Empty for `push`; `workflow_dispatch` supplies true or false.
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          # A release reaches the store's users directly, so only main may make
+          # one. `push` is limited to main already; this stops a manual run
+          # started on another branch.
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases go out from main only; this run is on $GITHUB_REF."
+            exit 1
+          fi
+          version="$(node scripts/version.mjs current)"
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # `git ls-remote` asks the remote, so the single-commit checkout needs
+          # no tag history.
+          if [ "$FORCE" = "true" ]; then
+            echo "::notice::force requested, releasing $tag again."
+            echo "publishing=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::notice::$tag is already released, nothing to do. Raise the version with node scripts/version.mjs bump, or start this workflow by hand with force."
+            echo "publishing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publishing=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Create the GitHub release
+      # Asked here, before anything is built. All three values set: the release
+      # goes to the store. None set: the store is not configured yet and the
+      # package is attached to the GitHub release instead. Some set: a mistake,
+      # and the release stops.
+      - name: Chrome Web Store access
+        id: store
+        if: steps.decide.outputs.publishing == 'true'
+        env:
+          CWS_SERVICE_ACCOUNT_KEY: ${{ secrets.CWS_SERVICE_ACCOUNT_KEY }}
+          # Secrets, or repository variables: the IDs are not confidential.
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID || vars.CWS_PUBLISHER_ID }}
+          CWS_ITEM_ID: ${{ secrets.CWS_ITEM_ID || vars.CWS_ITEM_ID }}
+        run: |
+          set -uo pipefail
+          missing=""
+          [ -n "${CWS_SERVICE_ACCOUNT_KEY:-}" ] || missing="$missing CWS_SERVICE_ACCOUNT_KEY,"
+          [ -n "${CWS_PUBLISHER_ID:-}" ] || missing="$missing CWS_PUBLISHER_ID,"
+          [ -n "${CWS_ITEM_ID:-}" ] || missing="$missing CWS_ITEM_ID,"
+          if [ -z "$missing" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "${CWS_SERVICE_ACCOUNT_KEY:-}${CWS_PUBLISHER_ID:-}${CWS_ITEM_ID:-}" ]; then
+            echo "::notice::Chrome Web Store access is not configured. The package will be attached to the GitHub release for an upload by hand; see Chrome Web Store access in docs/RELEASING.md."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Chrome Web Store access is only partly configured, missing:${missing%,}. Nothing was built or published; see Chrome Web Store access in docs/RELEASING.md."
+            exit 1
+          fi
+
+  release:
+    name: Verify, pack and publish
+    needs: version
+    if: needs.version.outputs.publishing == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+      STORE: ${{ needs.version.outputs.store }}
+      PACKAGE: dist/mysttic-adblock-enjoyer-${{ needs.version.outputs.version }}.zip
+      # A secret, or a repository variable: the ID is not confidential.
+      CWS_ITEM_ID: ${{ secrets.CWS_ITEM_ID || vars.CWS_ITEM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # No dependencies to install: the scripts use Node.js alone.
+      - name: Verify and pack
+        run: npm run build
+
+      # Before the tag, so a failure here leaves nothing released on either side
+      # and the run can be repeated. A version the store already holds is
+      # skipped, which keeps a repeat after a later failure from touching the
+      # store again. The store publishes the version once its review passes.
+      - name: Submit to the Chrome Web Store
+        if: env.STORE == 'true'
+        env:
+          CWS_SERVICE_ACCOUNT_KEY: ${{ secrets.CWS_SERVICE_ACCOUNT_KEY }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID || vars.CWS_PUBLISHER_ID }}
+        run: node scripts/chrome-web-store.mjs publish "$PACKAGE"
+
+      - name: Write the release notes
+        run: |
+          set -euo pipefail
+          node scripts/version.mjs notes > release-notes.md
+          {
+            echo
+            echo "## Installation"
+            echo
+            if [ "$STORE" = "true" ]; then
+              echo "Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/$CWS_ITEM_ID)."
+              echo "The store offers this version once its review passes."
+            else
+              echo "The package is attached. Upload it in the Chrome Web Store Developer Dashboard."
+            fi
+          } >> release-notes.md
+          cat release-notes.md
+
+      - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force || 'false' }}
         run: |
-          node scripts/release-notes.js > release-notes.md
-          gh release create "$GITHUB_REF_NAME" dist/*.zip --title "$GITHUB_REF_NAME" --notes-file release-notes.md
-
-      # Skipped until the store credentials are added as repository secrets.
-      - name: Upload to the Chrome Web Store and submit for review
-        if: env.CWS_REFRESH_TOKEN != ''
-        run: node scripts/publish-cws.js dist/*.zip
+          set -euo pipefail
+          # A forced run tags a version that already exists, which
+          # `gh release create` refuses, so the old release and its tag go first.
+          if [ "$FORCE" = "true" ]; then
+            gh release delete "$TAG" --yes --cleanup-tag || true
+          fi
+          # The package is attached only while the store is not configured.
+          assets=()
+          if [ "$STORE" != "true" ]; then
+            assets+=("$PACKAGE")
+          fi
+          gh release create "$TAG" "${assets[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --notes-file release-notes.md
+          echo "Released $TAG" >> "$GITHUB_STEP_SUMMARY"
