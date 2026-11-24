@@ -32,6 +32,11 @@ All code ships in the package. The extension loads no remote scripts and uses no
 
 ## Privacy policy
 
-The field needs a public URL. The policy text is [`PRIVACY.md`](../PRIVACY.md). While this
-repository is private that file has no public address, so publish the text somewhere public
-(for example a GitHub gist or a page on your own site) and paste that URL.
+The policy is [`PRIVACY.md`](../PRIVACY.md) in this repository. Paste its public address:
+
+```
+https://github.com/Mysttic/mysttic-adblock-enjoyer/blob/main/PRIVACY.md
+```
+
+The address opens without signing in only while the repository is public. Check that before
+a submission, because the store and its reviewers must be able to read it.
